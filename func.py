@@ -6,19 +6,19 @@ from scipy import stats
 from typing import Tuple, List, Dict
 
 
-def preprocess_text(text: str) -> str:
-    russian_alphabet = 'абвгдежзийклмнопрстуфхцчшщыэюя'
-    text = text.lower()
-    return ''.join(c for c in text if c in russian_alphabet)
-
-
 def variation_series(data: np.ndarray) -> np.ndarray:
-    """Составить вариационный ряд."""
+    """
+    Составить вариационный ряд.
+    Здесь идёт сортировка данных значений
+    """
     return np.sort(data)
 
 
 def interval_statistics(data: np.ndarray, intervals: np.ndarray) -> pd.DataFrame:
-    """Построить интервальный статистический ряд."""
+    """
+    Построить интервальный статистический ряд.
+    Подсчитывается количество значений, встречающийхся на этом интервале
+    """
     hist, bin_edges = np.histogram(data, bins=intervals)
     interval_df = pd.DataFrame({
         'Interval': [f"{bin_edges[i]} - {bin_edges[i + 1]}" for i in range(len(hist))],
@@ -29,8 +29,8 @@ def interval_statistics(data: np.ndarray, intervals: np.ndarray) -> pd.DataFrame
 
 def relative_frequency_polygon(data: np.ndarray, intervals: np.ndarray) -> None:
     """Построить полигон относительных частот и гистограмму."""
-    hist, _ = np.histogram(data, bins=intervals)
-    relative_frequencies = hist / np.sum(hist)
+    hist, _ = np.histogram(data, bins=intervals) #вычисляем частоты на заданных интервалах
+    relative_frequencies = hist / np.sum(hist) #делим выявленные ранее частоты на количество всех появлений значений
 
     plt.figure(figsize=(12, 6))
 
@@ -161,7 +161,7 @@ def confidence_intervals(data: np.ndarray, confidence_level: float = 0.95) -> Tu
     """Find confidence intervals for the population mean and population variance."""
     mean = np.mean(data)
     std = np.std(data, ddof=1)
-    variance = np.var(data, ddof=1)  # Calculate variance
+    variance = np.var(data, ddof=1)
     n = len(data)
     h = std / np.sqrt(n)
 

@@ -1,14 +1,93 @@
 «Проверка гипотезы о законе распределения генеральной совокупности»
 В результате опыта была получена выборочная совокупность.
 Задание:
-1. Составить вариационный ряд.
+1. Составить вариационный ряд. +
 2. Построить интервальный статистический ряд.
 3. По сгруппированным данным построить полигон относительных частот, гистограмму относительных частот,
-4. Построить график эмпирической функции распределения.
-5. Найти числовые характеристики выборки: выборочное среднее, исправленную выборочную дисперсию, моду, медиану, эксцесс, асимметрию.
+4. Построить график эмпирической функции распределения. +
+5. Найти числовые характеристики выборки: выборочное среднее, исправленную выборочную дисперсию, моду, медиану, эксцесс, асимметрию. +
 6. По виду гистограммы и эмпирической функции распределения выборки выдвинуть гипотезу о распределении генеральной совокупности.
 7. Найти оценки параметров предполагаемого распределения генеральной совокупности.
 8. Построить на чертеже гистограммы и эмпирической функции её теоретические аналоги f(x) и F(x).
-9. Проверить выполнение правила «трех сигма».
+9. Проверить выполнение правила «трех сигма». +
 10. Применить критерий согласия Пирсона принять или опровергнуть выдвинутую гипотезу о распределении генеральной совокупности.
 11. Найти доверительные интервалы для генеральной средней и генерального среднеквадратического отклонения по уровню надежности γ = 0,95.
+
+
+Эти 3 функции стоит переделать вручную:
+
+def hypothesis_distribution(data: np.ndarray) -> None:
+    """Выдвинуть гипотезу о распределении генеральной совокупности на основе гистограммы."""
+    sns.histplot(data, kde=True)
+    plt.title('Гистограмма и KDE для проверки распределения')
+    plt.show()
+
+
+def fit_distribution_parameters(data: np.ndarray) -> Tuple[float, float]:
+    """Fit parameters for a normal distribution."""
+    mu = np.mean(data)
+    std = np.std(data, ddof=1)
+    return mu, std
+
+
+def theoretical_distribution(data: np.ndarray, mu: float, std: float, intervals: np.ndarray) -> None:
+    """Построить теоретические аналоги гистограммы и эмпирической функции."""
+    x = np.linspace(np.min(data), np.max(data), 100)
+    pdf = stats.norm.pdf(x, mu, std)
+    
+    plt.figure(figsize=(10, 5))
+    plt.hist(data, bins=intervals, density=True, alpha=0.5, color='blue', edgecolor='black', label='Гистограмма')
+    plt.plot(x, pdf, color='red', label='Теоретическая PDF')
+    plt.title('Сравнение гистограммы и теоретической PDF')
+    plt.legend()
+    plt.show()
+
+def chi_square_test(data: np.ndarray, intervals: np.ndarray) -> Tuple[float, float]:
+    """Apply Pearson's Chi-square test."""
+    hist, _ = np.histogram(data, bins=intervals)
+    mu, std = fit_distribution_parameters(data)
+
+    # Calculate expected frequencies for a normal distribution
+    bin_centers = (intervals[:-1] + intervals[1:]) / 2
+    expected_frequencies = len(data) * stats.norm.pdf(bin_centers, mu, std) * np.diff(intervals)
+
+    # Debug print to check the sums
+    observed_sum = np.sum(hist)
+    expected_sum = np.sum(expected_frequencies)
+    print(f"Observed sum: {observed_sum}, Expected sum: {expected_sum}")
+
+    # Check if the expected frequencies sum up correctly with tolerance
+    if not np.isclose(observed_sum, expected_sum, rtol=1e-5):
+        print(f"Warning: The sums do not match closely. Diff: {observed_sum - expected_sum}")
+
+    # Add a condition to check the dimensions
+    if hist.shape[0] != expected_frequencies.shape[0]:
+        print("Warning: The dimensions of hist and expected_frequencies do not match.")
+
+    # Perform Chi-Square test
+    try:
+        chi2_stat, p_value = stats.chisquare(f_obs=hist, f_exp=expected_frequencies)
+    except ValueError as e:
+        print(f"Error in Chi-Square calculation: {e}")
+        print("Check the sums and dimensions of the observed/expected frequencies.")
+        return None, None
+
+    return chi2_stat, p_value
+
+
+def confidence_intervals(data: np.ndarray, confidence_level: float = 0.95) -> Tuple[Tuple[float, float], Tuple[float, float]]:
+    """Find confidence intervals for the population mean and population variance."""
+    mean = np.mean(data)
+    std = np.std(data, ddof=1)
+    variance = np.var(data, ddof=1)
+    n = len(data)
+    h = std / np.sqrt(n)
+
+    mean_interval = (mean - h * stats.t.ppf(1 - (1 - confidence_level) / 2, n - 1),
+                     mean + h * stats.t.ppf(1 - (1 - confidence_level) / 2, n - 1))
+    variance_interval = (variance * (n - 1) / stats.chi2.ppf(1 - confidence_level / 2, n - 1),
+                         variance * (n - 1) / stats.chi2.ppf(confidence_level / 2, n - 1))
+
+    return mean_interval, variance_interval
+
+Решить всю эту хуйню на бумажке, после перенести на python

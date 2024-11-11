@@ -21,7 +21,7 @@ data = [
 
 data = np.array(data)
 
-intervals = np.arange(100, 200, 5)
+intervals = np.arange(110, 160, 5)
 
 # Вызов функций
 variation_series(data)
