@@ -24,20 +24,23 @@ data = np.array(data)
 intervals = np.arange(110, 160, 5)
 
 # Вызов функций
-variation_series(data)
-print(interval_statistics(data, intervals))
+print(f'Вариационный ряд:\n {variation_series(data)}')
+print(f'Интервальный статистический ряд:\n {interval_statistics(data, intervals)}')
 relative_frequency_polygon(data, intervals)
 empirical_distribution_function(data)
-print(descriptive_statistics(data))
-hypothesis_distribution(data)
+theoretical_graphics(data, intervals)
+mean, variance, mode, median, kurtosis, skewness = descriptive_statistics(data)
 mu, std = fit_distribution_parameters(data)
-print(f'Estimated parameters: mu={mu}, std={std}')
-theoretical_distribution(data, mu, std, intervals)
-print(three_sigma_rule(data))
-chi2_stat, p_value = chi_square_test(data, intervals)
-print(f'Chi-square statistic: {chi2_stat}, p-value: {p_value}')
-mean_interval, variance_interval = confidence_intervals(data, confidence_level=0.95)
-print(f'Mean Confidence Interval: {mean_interval}')
-print(f'Variance Confidence Interval: {variance_interval}')
+percent_three_sigma = three_sigma_rule(data)
+mean_interval, variance_interval = confidence_intervals(data, confidence=0.95)
+
+chi2, p_value, chi2_critical = chisquare_test(data)
+
+mean_ci, std_ci = confidence_intervals(data)
+
+print(generate_report(mean, variance, mode, median, kurtosis, skewness, std, mean_ci, std_ci, chi2, p_value, percent_three_sigma, chi2_critical))
+
+_, p_value = stats.normaltest(data)
+print(f"P-значение теста на нормальность: {p_value}")
 
 

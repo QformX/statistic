@@ -79,21 +79,7 @@ def descriptive_statistics(data: np.ndarray) -> Dict[str, float]:
     kurtosis = stats.kurtosis(data, nan_policy='omit')
     skewness = stats.skew(data, nan_policy='omit')
 
-    return {
-        'mean': mean,
-        'variance': variance,
-        'mode': mode,
-        'median': median,
-        'kurtosis': kurtosis,
-        'skewness': skewness
-    }
-
-
-def hypothesis_distribution(data: np.ndarray) -> None:
-    """Выдвинуть гипотезу о распределении генеральной совокупности на основе гистограммы."""
-    sns.histplot(data, kde=True)
-    plt.title('Гистограмма и KDE для проверки распределения')
-    plt.show()
+    return mean, variance, mode, median, kurtosis, skewness
 
 
 def fit_distribution_parameters(data: np.ndarray) -> Tuple[float, float]:
@@ -103,71 +89,129 @@ def fit_distribution_parameters(data: np.ndarray) -> Tuple[float, float]:
     return mu, std
 
 
-def theoretical_distribution(data: np.ndarray, mu: float, std: float, intervals: np.ndarray) -> None:
-    """Построить теоретические аналоги гистограммы и эмпирической функции."""
-    x = np.linspace(np.min(data), np.max(data), 100)
-    pdf = stats.norm.pdf(x, mu, std)
-    
-    plt.figure(figsize=(10, 5))
-    plt.hist(data, bins=intervals, density=True, alpha=0.5, color='blue', edgecolor='black', label='Гистограмма')
-    plt.plot(x, pdf, color='red', label='Теоретическая PDF')
-    plt.title('Сравнение гистограммы и теоретической PDF')
-    plt.legend()
-    plt.show()
-
-
 def three_sigma_rule(data: np.ndarray) -> int:
     """Проверить выполнение правила «трех сигма»."""
     mean = np.mean(data)
     std = np.std(data, ddof=1)
     within_three_sigma = np.sum((data >= (mean - 3 * std)) & (data <= (mean + 3 * std)))
-    return within_three_sigma
+    return within_three_sigma / len(data) * 100
 
-
-def chi_square_test(data: np.ndarray, intervals: np.ndarray) -> Tuple[float, float]:
-    """Apply Pearson's Chi-square test."""
-    hist, _ = np.histogram(data, bins=intervals)
-    mu, std = fit_distribution_parameters(data)
-
-    # Calculate expected frequencies for a normal distribution
-    bin_centers = (intervals[:-1] + intervals[1:]) / 2
-    expected_frequencies = len(data) * stats.norm.pdf(bin_centers, mu, std) * np.diff(intervals)
-
-    # Debug print to check the sums
-    observed_sum = np.sum(hist)
-    expected_sum = np.sum(expected_frequencies)
-    print(f"Observed sum: {observed_sum}, Expected sum: {expected_sum}")
-
-    # Check if the expected frequencies sum up correctly with tolerance
-    if not np.isclose(observed_sum, expected_sum, rtol=1e-5):
-        print(f"Warning: The sums do not match closely. Diff: {observed_sum - expected_sum}")
-
-    # Add a condition to check the dimensions
-    if hist.shape[0] != expected_frequencies.shape[0]:
-        print("Warning: The dimensions of hist and expected_frequencies do not match.")
-
-    # Perform Chi-Square test
-    try:
-        chi2_stat, p_value = stats.chisquare(f_obs=hist, f_exp=expected_frequencies)
-    except ValueError as e:
-        print(f"Error in Chi-Square calculation: {e}")
-        print("Check the sums and dimensions of the observed/expected frequencies.")
-        return None, None
-
-    return chi2_stat, p_value
-
-
-def confidence_intervals(data: np.ndarray, confidence_level: float = 0.95) -> Tuple[Tuple[float, float], Tuple[float, float]]:
-    """Find confidence intervals for the population mean and population variance."""
+def theoretical_graphics(data, intervals: np.ndarray):
     mean = np.mean(data)
-    std = np.std(data, ddof=1)
-    variance = np.var(data, ddof=1)
+    std_dev = np.std(data, ddof=1)  # Используем выборочное стандартное отклонение
+
+    # Настройка графиков
+    fig, axs = plt.subplots(2, 1, figsize=(12, 12))
+
+    # 1. Гистограмма выборки
+    axs[0].hist(data, bins=intervals, density=True, alpha=0.5, color='blue', edgecolor='black', label='Гистограмма выборки')
+    axs[0].set_title('Гистограмма выборки')
+    axs[0].set_xlabel('Значения')
+    axs[0].set_ylabel('Плотность')
+    axs[0].grid()
+    axs[0].legend()
+
+    # 2. Эмпирическая функция распределения
+    ecdf_vals = np.searchsorted(np.sort(data), np.sort(data), side="right") / len(data)  # ECDF
+    axs[1].step(np.sort(data), ecdf_vals, label='Эмпирическая функция распределения', color='blue', where='post')
+    axs[1].set_title('Эмпирическая функция распределения')
+    axs[1].set_xlabel('Значения')
+    axs[1].set_ylabel('Вероятность')
+    axs[1].grid()
+    axs[1].legend()
+
+    # 3. Теоретическая гистограмма (нормальное распределение)
+    x = np.linspace(min(data), max(data), 100)
+    p = stats.norm.pdf(x, mean, std_dev)  # Теоретическая функция плотности
+    axs[0].plot(x, p, 'k', linewidth=2, label='Нормальное распределение (PDF)')
+    axs[0].set_title('Теоретическая гистограмма')
+    axs[0].set_xlabel('Значения')
+    axs[0].set_ylabel('Плотность')
+    axs[0].grid()
+    axs[0].legend()
+
+    # 4. Теоретическая функция распределения
+    F_x = stats.norm.cdf(x, mean, std_dev)  # Функция распределения
+    axs[1].plot(x, F_x, 'r-', label='Нормальное распределение (CDF)', linewidth=2)
+    axs[1].set_title('Теоретическая функция распределения')
+    axs[1].set_xlabel('Значения')
+    axs[1].set_ylabel('Вероятность накопления')
+    axs[1].grid()
+    axs[1].legend()
+
+    # Настройка общего оформления
+    plt.tight_layout()
+    plt.show()
+
+# 1. Вычисление среднего и стандартного отклонения
+def calculate_mean_std(data):
+    mean = np.mean(data)
+    std = np.std(data, ddof=1)  # Используем ddof=1 для выборочного отклонения
+    return mean, std
+
+# 4. Критерий согласия Пирсона
+def chisquare_test(data, alpha=0.05):
+    mean, std_dev = fit_distribution_parameters(data)
+    observed_freq, bins = np.histogram(data, bins=9)
+    expected_freq = np.array([len(data) * (stats.norm.cdf(bins[i + 1], mean, std_dev) - stats.norm.cdf(bins[i], mean, std_dev)) for i in range(len(bins) - 1)])
+    
+    chi_squared = np.sum((observed_freq - expected_freq) ** 2 / expected_freq)
+    
+    # Вычисление степеней свободы
+    df = len(observed_freq) - 1 - 2
+    
+    p_value = 1 - stats.chi2.cdf(chi_squared, df)
+    
+    # Вычисление критического значения хи-квадрат
+    chi2_critical = stats.chi2.ppf(1 - alpha, df)
+    
+    return chi_squared, p_value, chi2_critical
+
+# 5. Доверительные интервалы
+def confidence_intervals(data, confidence=0.95):
+    mean, std = calculate_mean_std(data)
     n = len(data)
-    h = std / np.sqrt(n)
+    
+    z_value = stats.norm.ppf((1 + confidence) / 2)
+    mean_ci = (mean - z_value * std / np.sqrt(n), mean + z_value * std / np.sqrt(n))
+    
+    chi2_lower = stats.chi2.ppf(0.025, n-1)
+    chi2_upper = stats.chi2.ppf(0.975, n-1)
+    var_ci = ((n-1)*std**2 / chi2_upper, (n-1)*std**2 / chi2_lower)
+    std_ci = (np.sqrt(var_ci[0]), np.sqrt(var_ci[1]))
+    
+    return mean_ci, std_ci
 
-    mean_interval = (mean - h * stats.t.ppf(1 - (1 - confidence_level) / 2, n - 1),
-                     mean + h * stats.t.ppf(1 - (1 - confidence_level) / 2, n - 1))
-    variance_interval = (variance * (n - 1) / stats.chi2.ppf(1 - confidence_level / 2, n - 1),
-                         variance * (n - 1) / stats.chi2.ppf(confidence_level / 2, n - 1))
+def generate_report(mean, variance, mode, median, kurtosis, skewness, std, 
+                    mean_ci, variance_ci, chi2, p_value, percent, chi2_critical):
+    report = f"""### Отчет по анализу выборки ###
 
-    return mean_interval, variance_interval
+Процент значений попадающих под "Правило трёх сигм": {percent}
+
+1. **Основные статистические показатели:**
+   - Среднее значение (mu): {mean:.2f}
+   - Мода: {mode}
+   - Медиана: {median:.2f}
+   - Дисперсия: {variance:.2f}
+   - Стандартное отклонение (std): {std:.2f}
+   - Эксцесс: {kurtosis:.2f}
+   - Асимметрия: {skewness:.2f}
+
+2. **Доверительные интервалы:**
+   - Доверительный интервал для средней: ({mean_ci[0]:.2f}, {mean_ci[1]:.2f})
+   - Доверительный интервал для дисперсии: ({variance_ci[0]:.2f}, {variance_ci[1]:.2f})
+
+3. **Критерий согласия Пирсона:**
+   - χ² = {chi2:.2f}
+   - p-значение = {p_value:.4f}
+   - χ²-крит = {chi2_critical:.2f}
+
+### Заключение:
+На основании значения p-значения (< 0.05) можно сделать вывод о том, что выборка существенно отличается от нормального распределения, что подтверждается критерием согласия Пирсона.
+
+Доверительные интервалы показывают, что, с вероятностью 95%, истинное среднее значение генеральной совокупности находится в пределах {mean_ci[0]:.2f}, {mean_ci[1]:.2f} и истинная дисперсия в пределах {variance_ci[0]:.2f}, {variance_ci[1]:.2f}.
+
+### Общие рекомендации:
+Для дальнейшего анализа целесообразно провести дополнительные исследования, например, исследовать нормальность данных с помощью других тестов или визуализировать распределение выборки.
+"""
+    return report
