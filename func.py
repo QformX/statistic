@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from scipy import stats
 from typing import Tuple, List, Dict
+from scipy.optimize import minimize
 
 
 def variation_series(data: np.ndarray) -> np.ndarray:
@@ -82,11 +83,22 @@ def descriptive_statistics(data: np.ndarray) -> Dict[str, float]:
     return mean, variance, mode, median, kurtosis, skewness
 
 
-def fit_distribution_parameters(data: np.ndarray) -> Tuple[float, float]:
-    """Fit parameters for a normal distribution."""
-    mu = np.mean(data)
-    std = np.std(data, ddof=1)
-    return mu, std
+def fit_distribution_parameters(data: np.ndarray, params) -> None:
+    result = minimize(log_likelihood, params, args=(data,), bounds=[(None, None), (1e-6, None)])
+    mu_mle, sigma_mle = result.x
+    print(f"Оценка параметров нормального распределения (метод максимального правдоподобия):")
+    print(f"Среднее (μ): {mu_mle:.2f}")
+    print(f"Стандартное отклонение (σ): {sigma_mle:.2f}")
+    
+    
+def log_likelihood(params, data):
+    mu, sigma = params
+    n = len(data)
+    if sigma <= 0:  # Стандартное отклонение должно быть положительным
+        return np.inf
+    ll = -n * np.log(np.sqrt(2 * np.pi) * sigma) - np.sum((data - mu) ** 2) / (2 * sigma**2)
+    return -ll  # Минус, так как minimize минимизирует, а мы ищем максимум
+
 
 
 def three_sigma_rule(data: np.ndarray) -> int:
@@ -151,7 +163,7 @@ def calculate_mean_std(data):
 
 # 4. Критерий согласия Пирсона
 def chisquare_test(data, alpha=0.05):
-    mean, std_dev = fit_distribution_parameters(data)
+    mean, std_dev = calculate_mean_std(data)
     observed_freq, bins = np.histogram(data, bins=9)
     expected_freq = np.array([len(data) * (stats.norm.cdf(bins[i + 1], mean, std_dev) - stats.norm.cdf(bins[i], mean, std_dev)) for i in range(len(bins) - 1)])
     
@@ -182,7 +194,7 @@ def confidence_intervals(data, confidence=0.95):
     
     return mean_ci, std_ci
 
-def generate_report(mean, variance, mode, median, kurtosis, skewness, std, 
+def generate_report(mean, variance, mode, median, kurtosis, skewness,
                     mean_ci, variance_ci, chi2, p_value, percent, chi2_critical):
     report = f"""### Отчет по анализу выборки ###
 
@@ -193,7 +205,6 @@ def generate_report(mean, variance, mode, median, kurtosis, skewness, std,
    - Мода: {mode}
    - Медиана: {median:.2f}
    - Дисперсия: {variance:.2f}
-   - Стандартное отклонение (std): {std:.2f}
    - Эксцесс: {kurtosis:.2f}
    - Асимметрия: {skewness:.2f}
 
